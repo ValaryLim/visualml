@@ -1,21 +1,20 @@
 # -*- coding: utf-8 -*-
+import numpy as np
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 
 import plotly.graph_objects as go
 
-# svm model
-import numpy as np
-from sklearn import svm
-
+from sklearn import svm, linear_model
 import sklearn.model_selection
 import sklearn.preprocessing
 
 # import other functions
 import datagen
 import utils.dash_reusable_components as drc
-import utils.svm_figure as svm_figure
+import utils.figure as figure
 import utils.evaluation_components as ec
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css', 'style.css']
@@ -174,6 +173,42 @@ app.layout = html.Div(children=[
                             "display": "block"
                         }
                     ),
+                    
+                    # model parameters: logistic regression
+                    html.Div(
+                        id = "lr-parameters",
+                        children = [
+                            # solver
+                            drc.NamedDropdown(
+                                id = "lr-solver",
+                                name = "Solver",
+                                options = [
+                                    {'label': 'Newton-CG', 'value': 'newton-cg'},
+                                    {'label': 'LBFGS', 'value': 'lbfgs'},
+                                    {'label': 'LibLinear', 'value': 'liblinear'},
+                                    {'label': 'SAG', 'value': 'sag'},
+                                    {'label': 'SAGA', 'value': 'saga'}
+                                ],
+                                value = 'lbfgs'
+                            ),
+                            # cost
+                            drc.NamedLabelSlider(
+                                id = "lr-cost",
+                                name = "Cost (C)",
+                                min = -2,
+                                max = 3,
+                                step = 1,
+                                marks =  {
+                                    i: str(10**i) for i in range(-2, 4)
+                                },
+                                value = -2
+                            ),
+                        ],
+                        style = {
+                            "display": "block"
+                        }
+                    ),
+
                     html.Hr()
                 ],
                 style = {
@@ -182,8 +217,22 @@ app.layout = html.Div(children=[
                 },
                 className = "three columns",         
             ),
+
+            # chart section
+            # model charts: svm
             html.Div(
                 id = "svm-charts",
+                style = {
+                    "display": "block"
+                }
+            ),
+
+            # model charts: logreg
+            html.Div(
+                id = "lr-charts",
+                children = [
+                    html.P("Logistic Regression"),
+                ],
                 style = {
                     "display": "block"
                 }
@@ -220,7 +269,7 @@ app.layout = html.Div(children=[
     dash.dependencies.Output('svm-parameters', 'style'),
     [dash.dependencies.Input('model', 'value')]
 )
-def update_parameters(model_type):
+def display_svm_parameters(model_type):
     if model_type == "svm":
         return { "display": "block" }
     else: 
@@ -231,7 +280,7 @@ def update_parameters(model_type):
     dash.dependencies.Output('svm-charts', 'style'),
     [dash.dependencies.Input('model', 'value')]
 )
-def update_parameters(model_type):
+def display_svm_model(model_type):
     if model_type == "svm":
         return { "display": "block" }
     else: 
@@ -253,7 +302,7 @@ def update_parameters(model_type):
         dash.dependencies.Input('svm-degree', 'value')
     ]
 )
-def update_svm(dataset, sample_size, noise, kernel, cost_power, gamma_power, degree):
+def update_svm_model(dataset, sample_size, noise, kernel, cost_power, gamma_power, degree):
     # generate data
     X, y = datagen.generate_data(
         dataset = dataset, n_samples = sample_size, noise = noise
@@ -286,17 +335,9 @@ def update_svm(dataset, sample_size, noise, kernel, cost_power, gamma_power, deg
         Z = model.decision_function(np.c_[xx.ravel(), yy.ravel()])
     else:
         Z = model.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1]
-
-    # svm description
-    description = '''A support vector machine takes in data points and 
-    outputs the hyperplane (in two dimensions this is a line) 
-    that best separates the tags. 
-    This line is the decision boundary: anything that falls to 
-    one side of it we will classify as green, and anything that 
-    falls to the other as red.'''
     
     # create figure
-    figure = svm_figure.render(
+    scatter = figure.render(
             model = model,
             X_train = X_train,
             X_test = X_test,
@@ -318,12 +359,9 @@ def update_svm(dataset, sample_size, noise, kernel, cost_power, gamma_power, deg
         html.Div(
             children = [
                 html.H6("Support Vector Machine (SVM)"),
-                html.P(
-                    children = description
-                ),
                 html.Br(),
                 dcc.Graph(
-                    figure = figure
+                    figure = scatter,
                 ),
             ],
             className = "six columns"
@@ -353,7 +391,7 @@ def update_svm(dataset, sample_size, noise, kernel, cost_power, gamma_power, deg
         dash.dependencies.Input('svm-kernel', 'value')
     ]
 )
-def disable_slider_param_gamma(kernel):
+def disable_svm_parameters_gamma(kernel):
     return kernel not in ['rbf', 'poly', 'sigmoid']
 
 # disable degree
@@ -363,8 +401,128 @@ def disable_slider_param_gamma(kernel):
         dash.dependencies.Input('svm-kernel', 'value')
     ]
 )
-def disable_slider_param_gamma(kernel):
+def disable_svm_parameters_degree(kernel):
     return kernel != 'poly'
+
+
+#### LOGISTIC REGRESSION OPTIONS ####
+# display logreg parameter options
+@app.callback(
+    dash.dependencies.Output('lr-parameters', 'style'),
+    [dash.dependencies.Input('model', 'value')]
+)
+def display_lr_parameters(model_type):
+    if model_type == "lr":
+        return { "display": "block" }
+    else: 
+        return { "display": "none" }
+
+# display logreg model
+@app.callback(
+    dash.dependencies.Output('lr-charts', 'style'),
+    [dash.dependencies.Input('model', 'value')]
+)
+def display_lr_model(model_type):
+    if model_type == "lr":
+        return { "display": "block" }
+    else: 
+        return { "display": "none" }
+
+# create LR charts and models
+@app.callback(
+    dash.dependencies.Output('lr-charts', 'children'),
+    [   
+        # dataset inputs
+        dash.dependencies.Input('dataset-type', 'value'), # dataset type
+        dash.dependencies.Input('dataset-size', 'value'), # dataset sample size
+        dash.dependencies.Input('dataset-noise', 'value'), # dataset noise level
+
+        # model inputs
+        dash.dependencies.Input('lr-solver', 'value'), 
+        dash.dependencies.Input('lr-cost', 'value'),
+    ]
+)
+def update_svm_model(dataset, sample_size, noise, solver, cost_power):
+    # generate data
+    X, y = datagen.generate_data(
+        dataset = dataset, n_samples = sample_size, noise = noise
+    )
+    
+    X = sklearn.preprocessing.StandardScaler().fit_transform(X)
+    
+    # train test split
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
+        X, y, test_size = 0.3, random_state = 123
+    )
+
+    h = 0.3 # mesh step
+    x_min = X[:, 0].min() - .5
+    x_max = X[:, 0].max() + .5
+    y_min = X[:, 1].min() - .5
+    y_max = X[:, 1].max() + .5
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+   
+    # create lr model
+    cost = 10 ** cost_power
+    model = linear_model.LogisticRegression(C = cost, solver = solver)
+    model.fit(X_train, y_train)
+
+    # Plot the decision boundary. For that, we will assign a color to each
+    # point in the mesh [x_min, x_max]x[y_min, y_max].
+    if hasattr(model, "decision_function"):
+        Z = model.decision_function(np.c_[xx.ravel(), yy.ravel()])
+    else:
+        Z = model.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1]
+    
+    # create figure
+    scatter = figure.render(
+            model = model,
+            X_train = X_train,
+            X_test = X_test,
+            y_train = y_train,
+            y_test = y_test,
+            Z = Z,
+            xx = xx,
+            yy = yy,
+            mesh_step = h,
+            threshold = 0.5)
+
+    # create roc curve
+    roc_curve = ec.roc(model, X_test, y_test)
+
+    # create confusion matrix
+    confusion_matrix = ec.confusionMatrix(model, X_test, y_test)
+
+    return [
+        html.Div(
+            children = [
+                html.H6("Logistic Regression"),
+                html.Br(),
+                dcc.Graph(
+                    figure = scatter
+                ),
+            ],
+            className = "six columns"
+        ), 
+        html.Div(
+            children = [
+                html.Div(
+                    children = [roc_curve]
+                ),
+                html.Hr(),
+                html.Div(
+                    children = [confusion_matrix]
+                )
+            ],
+            style = {
+                'width': '25%',
+                'textAlign': 'center'
+            },
+            className = "three columns"
+        )
+    ]
+
 
 if __name__ == '__main__':
 	app.run_server(debug = True)
