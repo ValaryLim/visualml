@@ -38,7 +38,8 @@ def roc(model, X_test, y_test):
             orientation = 'h'
         ),
         margin = dict(l = 0, r = 0, t = 40, b = 0),
-        height = 350
+        height = 300,
+        width = 300,
     )
 
     figure = go.Figure(
@@ -76,6 +77,7 @@ def confusionMatrix(model, X_test, y_test):
             'r': 10,
         },
         height = 350,
+        width = 300,
     )
 
     
