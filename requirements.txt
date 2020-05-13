@@ -174,13 +174,11 @@ requests-oauthlib==1.2.0
 retrying==1.3.3
 rope==0.16.0
 rsa==4.0
-Rtree==0.9.4
 ruamel-yaml==0.15.80
 scikit-image==0.16.2
 scikit-learn==0.22.1
 scipy==1.4.1
 seaborn==0.10.0
-selenium==3.141.0
 Send2Trash==1.5.0
 simplegeneric==0.8.1
 singledispatch==3.4.0.3
@@ -204,9 +202,6 @@ statsmodels==0.11.1
 sympy==1.5.1
 tables==3.6.1
 tblib==1.6.0
-tensorboard==2.0.1
-tensorflow==2.0.0
-tensorflow-estimator==2.0.1
 termcolor==1.1.0
 terminado==0.8.3
 testpath==0.4.4
