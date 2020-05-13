@@ -150,12 +150,6 @@ pycurl==7.43.0.5
 pydocstyle==5.0.2
 pyflakes==2.1.1
 Pygments==2.6.1
-pylint==2.4.4
-pyodbc===4.0.0-unsupported
-pyOpenSSL==19.1.0
-pyparsing==2.4.7
-pyrsistent==0.16.0
-PySocks==1.7.1
 pytest==5.4.1
 pytest-arraydiff==0.3
 pytest-astropy==0.7.0
