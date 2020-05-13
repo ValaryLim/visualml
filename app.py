@@ -7,7 +7,7 @@ import dash_html_components as html
 
 import plotly.graph_objects as go
 
-from sklearn import svm, linear_model
+from sklearn import svm, linear_model, tree, naive_bayes
 import sklearn.model_selection
 import sklearn.preprocessing
 
@@ -66,8 +66,8 @@ app.layout = html.Div(children=[
                         options = [
                             {'label': 'Support Vector Machine (SVM)', 'value': 'svm'},
                             {'label': 'Logistic Regression', 'value': 'lr'},
-                            {'label': 'Naive Bayes', 'value': 'nb'},
                             {'label': 'Decision Tree', 'value': 'dt'},
+                            {'label': 'Naive Bayes', 'value': 'nb'},
                         ],
                         value = "svm"
                     ),
@@ -209,6 +209,36 @@ app.layout = html.Div(children=[
                         }
                     ),
 
+                    # model parameters: decision tree
+                    html.Div(
+                        id = "dt-parameters",
+                        children = [
+                            # criterion
+                            drc.NamedDropdown(
+                                id = "dt-criterion",
+                                name = "Criterion",
+                                options = [
+                                    {'label': 'Gini', 'value': 'gini'},
+                                    {'label': 'Entropy', 'value': 'entropy'}
+                                ],
+                                value = 'gini'
+                            ),
+                            # criterion
+                            drc.NamedDropdown(
+                                id = "dt-splitter",
+                                name = "Splitter",
+                                options = [
+                                    {'label': 'Best', 'value': 'best'},
+                                    {'label': 'Random', 'value': 'random'}
+                                ],
+                                value = 'best'
+                            ),
+                        ],
+                        style = {
+                            "display": "block"
+                        }
+                    ),
+
                     html.Hr()
                 ],
                 style = {
@@ -230,13 +260,29 @@ app.layout = html.Div(children=[
             # model charts: logreg
             html.Div(
                 id = "lr-charts",
-                children = [
-                    html.P("Logistic Regression"),
-                ],
                 style = {
                     "display": "block"
                 }
             ),
+
+            # model charts: decision tree
+            html.Div(
+                id = "dt-charts",
+                style = {
+                    "display": "block"
+                }
+            ),
+
+            # model charts: naive bayes
+            html.Div(
+                id = "nb-charts",
+                children = [
+                    html.P("Naive Bayes")
+                ],
+                style = {
+                    "display": "block"
+                }
+            )
         ],
         className = "row",
         style = { 
@@ -248,7 +294,7 @@ app.layout = html.Div(children=[
     html.Div(
         children = [
             html.P(children = "built using Dash"),
-            html.P(children = "clone of : https://dash-gallery.plotly.host/dash-svm/")
+            html.P(children = "inspired by : https://dash-gallery.plotly.host/dash-svm/")
         ],
         style = {
             'textAlign': 'center',
@@ -442,7 +488,7 @@ def display_lr_model(model_type):
         dash.dependencies.Input('lr-cost', 'value'),
     ]
 )
-def update_svm_model(dataset, sample_size, noise, solver, cost_power):
+def update_lr_model(dataset, sample_size, noise, solver, cost_power):
     # generate data
     X, y = datagen.generate_data(
         dataset = dataset, n_samples = sample_size, noise = noise
@@ -522,6 +568,227 @@ def update_svm_model(dataset, sample_size, noise, solver, cost_power):
             className = "three columns"
         )
     ]
+
+#### DECISION TREE OPTIONS ####
+# display decision tree parameter options
+@app.callback(
+    dash.dependencies.Output('dt-parameters', 'style'),
+    [dash.dependencies.Input('model', 'value')]
+)
+def display_lr_parameters(model_type):
+    if model_type == "dt":
+        return { "display": "block" }
+    else: 
+        return { "display": "none" }
+
+# display decision tree model
+@app.callback(
+    dash.dependencies.Output('dt-charts', 'style'),
+    [dash.dependencies.Input('model', 'value')]
+)
+def display_lr_model(model_type):
+    if model_type == "dt":
+        return { "display": "block" }
+    else: 
+        return { "display": "none" }
+
+# create decision tree charts and models
+@app.callback(
+    dash.dependencies.Output('dt-charts', 'children'),
+    [   
+        # dataset inputs
+        dash.dependencies.Input('dataset-type', 'value'), # dataset type
+        dash.dependencies.Input('dataset-size', 'value'), # dataset sample size
+        dash.dependencies.Input('dataset-noise', 'value'), # dataset noise level
+
+        # model inputs
+        dash.dependencies.Input('dt-criterion', 'value'), 
+        dash.dependencies.Input('dt-splitter', 'value'),
+    ]
+)
+def update_dt_model(dataset, sample_size, noise, criterion, splitter):
+    # generate data
+    X, y = datagen.generate_data(
+        dataset = dataset, n_samples = sample_size, noise = noise
+    )
+    
+    X = sklearn.preprocessing.StandardScaler().fit_transform(X)
+    
+    # train test split
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
+        X, y, test_size = 0.3, random_state = 123
+    )
+
+    h = 0.3 # mesh step
+    x_min = X[:, 0].min() - .5
+    x_max = X[:, 0].max() + .5
+    y_min = X[:, 1].min() - .5
+    y_max = X[:, 1].max() + .5
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+   
+    # create dt model
+    model = tree.DecisionTreeClassifier(criterion = criterion, splitter = splitter)
+    model.fit(X_train, y_train)
+
+    # Plot the decision boundary. For that, we will assign a color to each
+    # point in the mesh [x_min, x_max]x[y_min, y_max].
+    if hasattr(model, "decision_function"):
+        Z = model.decision_function(np.c_[xx.ravel(), yy.ravel()])
+    else:
+        Z = model.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1]
+    
+    # create figure
+    scatter = figure.render(
+            model = model,
+            X_train = X_train,
+            X_test = X_test,
+            y_train = y_train,
+            y_test = y_test,
+            Z = Z,
+            xx = xx,
+            yy = yy,
+            mesh_step = h,
+            threshold = 0.5)
+
+    # create roc curve
+    roc_curve = ec.roc(model, X_test, y_test)
+
+    # create confusion matrix
+    confusion_matrix = ec.confusionMatrix(model, X_test, y_test)
+
+    return [
+        html.Div(
+            children = [
+                html.H6("Decision Tree"),
+                html.Br(),
+                dcc.Graph(
+                    figure = scatter
+                ),
+            ],
+            className = "six columns"
+        ), 
+        html.Div(
+            children = [
+                html.Div(
+                    children = [roc_curve]
+                ),
+                html.Hr(),
+                html.Div(
+                    children = [confusion_matrix]
+                )
+            ],
+            style = {
+                'width': '25%',
+                'textAlign': 'center'
+            },
+            className = "three columns"
+        )
+    ]
+
+
+#### NAIVE BAYES OPTIONS ####
+# display decision tree model
+@app.callback(
+    dash.dependencies.Output('nb-charts', 'style'),
+    [dash.dependencies.Input('model', 'value')]
+)
+def display_lr_model(model_type):
+    if model_type == "nb":
+        return { "display": "block" }
+    else: 
+        return { "display": "none" }
+
+# create naive bayes charts and models
+@app.callback(
+    dash.dependencies.Output('nb-charts', 'children'),
+    [   
+        # dataset inputs
+        dash.dependencies.Input('dataset-type', 'value'), # dataset type
+        dash.dependencies.Input('dataset-size', 'value'), # dataset sample size
+        dash.dependencies.Input('dataset-noise', 'value'), # dataset noise level
+    ]
+)
+def update_dt_model(dataset, sample_size, noise):
+    # generate data
+    X, y = datagen.generate_data(
+        dataset = dataset, n_samples = sample_size, noise = noise
+    )
+    
+    X = sklearn.preprocessing.StandardScaler().fit_transform(X)
+    
+    # train test split
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(
+        X, y, test_size = 0.3, random_state = 123
+    )
+
+    h = 0.3 # mesh step
+    x_min = X[:, 0].min() - .5
+    x_max = X[:, 0].max() + .5
+    y_min = X[:, 1].min() - .5
+    y_max = X[:, 1].max() + .5
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+   
+    # create dt model
+    model = naive_bayes.GaussianNB()
+    model.fit(X_train, y_train)
+
+    # Plot the decision boundary. For that, we will assign a color to each
+    # point in the mesh [x_min, x_max]x[y_min, y_max].
+    if hasattr(model, "decision_function"):
+        Z = model.decision_function(np.c_[xx.ravel(), yy.ravel()])
+    else:
+        Z = model.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1]
+    
+    # create figure
+    scatter = figure.render(
+            model = model,
+            X_train = X_train,
+            X_test = X_test,
+            y_train = y_train,
+            y_test = y_test,
+            Z = Z,
+            xx = xx,
+            yy = yy,
+            mesh_step = h,
+            threshold = 0.5)
+
+    # create roc curve
+    roc_curve = ec.roc(model, X_test, y_test)
+
+    # create confusion matrix
+    confusion_matrix = ec.confusionMatrix(model, X_test, y_test)
+
+    return [
+        html.Div(
+            children = [
+                html.H6("Naive Bayes"),
+                html.Br(),
+                dcc.Graph(
+                    figure = scatter
+                ),
+            ],
+            className = "six columns"
+        ), 
+        html.Div(
+            children = [
+                html.Div(
+                    children = [roc_curve]
+                ),
+                html.Hr(),
+                html.Div(
+                    children = [confusion_matrix]
+                )
+            ],
+            style = {
+                'width': '25%',
+                'textAlign': 'center'
+            },
+            className = "three columns"
+        )
+    ]
+
 
 
 if __name__ == '__main__':
