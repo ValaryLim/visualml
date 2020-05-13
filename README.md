@@ -10,7 +10,6 @@ Access the dashboard [here](https://visualml.herokuapp.com/). This dashboard was
 These instructions will get you a copy of the project up and running on your local machine for testing purposes. 
 
 ### Prerequisites
-What things you need to install and how to install them
 ```
 python: 3.7.7
 ```
