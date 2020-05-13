@@ -9,7 +9,10 @@ import plotly.graph_objects as go
 import plotly.figure_factory as ff
 
 def roc(model, X_test, y_test):
-    y_pred = model.decision_function(X_test)
+    if hasattr(model, "decision_function"):
+        y_pred = model.decision_function(X_test)
+    else:
+        y_pred = model.predict_proba(X_test)[:, 1]
 
     fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred)
     
