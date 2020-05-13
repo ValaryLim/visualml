@@ -20,23 +20,24 @@ def render(model, X_train, X_test, y_train, y_test, Z, xx, yy, mesh_step, thresh
         title = f'SVM',
         xaxis = dict(
             ticks='',
-            # showticklabels = False,
-            # showgrid = False
-            # zeroline = False,
+            showticklabels = False,
+            showgrid = False,
+            zeroline = False,
         ),
         yaxis = dict(
             ticks='',
-            # showticklabels = False,
-            # showgrid = False
-            # zeroline = False,
+            showticklabels = False,
+            showgrid = False,
+            zeroline = False,
         ),
         hovermode = 'closest',
         legend = dict(
             x = 0, 
-            y = -0.05, 
+            y = 0, 
             orientation = "h"),
         margin = dict(l = 0, r = 0, t = 0, b = 0),
         height = 700,
+        width = 650,
     )
 
 
